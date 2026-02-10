@@ -6,3 +6,11 @@ database:
   url: "postgres://bookstore:bookstore@127.0.0.1:55432/bookstore?sslmode=disable"
   username: "bookstore"
   password: "bookstore"
+auth:
+  jwt_secret: "dev-secret-change-me"
+  jwt_issuer: "ember-bookstore"
+  jwt_audience: "ember-users"
+  jwt_expires_in_seconds: 3600
+  public_paths:
+    - "/login"
+    - "/health"

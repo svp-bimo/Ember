@@ -3,6 +3,7 @@
 //! Core types and minimal runtime API for Ember.
 
 use std::net::ToSocketAddrs;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use ember_ext_config::load_config_yaml_or_env;
@@ -22,8 +23,8 @@ pub use ember_ext_runtime::App;
 /// Commonly used Ember types.
 pub mod prelude {
     pub use crate::{
-        run_with_db_and_controller, App, EmberError, HasEmberService, HttpHandler, HttpResponse,
-        Json, ProblemDetails, Route, Router, RunOptions,
+        run_with_db_and_controller, run_with_db_and_controller_and_auth, App, EmberError,
+        HasEmberService, HttpHandler, HttpResponse, Json, ProblemDetails, Route, Router, RunOptions,
     };
 }
 
@@ -169,6 +170,57 @@ where
     run_basic_http(&listen, controller).await
 }
 
+/// Run an Ember application with DB setup, controller, and auth filter.
+pub async fn run_with_db_and_controller_and_auth<TConfig, TController, TFilter, F>(
+    options: RunOptions<'_>,
+    build_controller_and_filter: F,
+) -> Result<(), EmberError>
+where
+    TConfig: DeserializeOwned + HasDbConfig + HasEmberService,
+    TController: ember_ext_runtime::ControllerMetadata + HttpHandler + Clone + Send + Sync + 'static,
+    TFilter: ember_ext_auth::SecurityFilter + Send + Sync + 'static,
+    F: FnOnce(TConfig) -> (TController, TFilter),
+{
+    let _ = dotenvy::dotenv();
+    if let Err(err) = ember_logging::init() {
+        return Err(EmberError::msg(format!("failed to initialize logging: {err}")));
+    }
+    let yaml_path = options.resolve_yaml_path();
+    let config = load_config_yaml_or_env::<TConfig>(
+        yaml_path.to_string_lossy().as_ref(),
+        options.config_env,
+    )?;
+    let service_name = config
+        .service_name()
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_string)
+        .or_else(|| {
+            std::env::var(options.service_env)
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+        })
+        .unwrap_or_else(|| "ember-service".to_string());
+    let listen = config
+        .listen_addr()
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_string)
+        .or_else(|| {
+            std::env::var(options.listen_env)
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+        })
+        .unwrap_or_else(|| "0.0.0.0:8080".to_string());
+    log_startup(&service_name, &listen);
+    let db = DbContext::new(config.db_config().clone());
+    let _pool = db.connect_and_migrate_entities().await?;
+
+    let (controller, filter) = build_controller_and_filter(config);
+    let mut app = App::new();
+    app.register_controller(controller.clone());
+    app.run()?;
+    run_basic_http_with_auth(&listen, controller, filter).await
+}
+
 async fn run_basic_http<T>(listen: &str, handler: T) -> Result<(), EmberError>
 where
     T: HttpHandler + Send + Sync + 'static,
@@ -192,7 +244,7 @@ where
         let handler = Arc::clone(&handler);
         tokio::spawn(async move {
             let response = match read_http_request(&mut socket).await {
-                Ok((method, path, body)) => handler
+                Ok((method, path, _headers, body)) => handler
                     .handle(&method, &path, &body)
                     .unwrap_or_else(|err| HttpResponse::text(500, err.to_string())),
                 Err(err) => HttpResponse::text(400, err.to_string()),
@@ -202,9 +254,59 @@ where
     }
 }
 
+async fn run_basic_http_with_auth<T, F>(listen: &str, handler: T, filter: F) -> Result<(), EmberError>
+where
+    T: HttpHandler + Send + Sync + 'static,
+    F: ember_ext_auth::SecurityFilter + Send + Sync + 'static,
+{
+    let mut addrs = listen
+        .to_socket_addrs()
+        .map_err(|err| EmberError::msg(format!("invalid listen address: {err}")))?;
+    let addr = addrs
+        .next()
+        .ok_or_else(|| EmberError::msg("listen address resolved to no sockets"))?;
+    let listener = TcpListener::bind(addr).await.map_err(|err| {
+        error!(error = %err, listen = %listen, "failed to bind listen address");
+        EmberError::msg(format!("failed to bind listen address: {err}"))
+    })?;
+    let handler = Arc::new(handler);
+    let filter = Arc::new(filter);
+    loop {
+        let (mut socket, _) = listener
+            .accept()
+            .await
+            .map_err(|err| EmberError::msg(format!("accept failed: {err}")))?;
+        let handler = Arc::clone(&handler);
+        let filter = Arc::clone(&filter);
+        tokio::spawn(async move {
+            let response = match read_http_request(&mut socket).await {
+                Ok((method, path, headers, body)) => {
+                    let (path_only, _) = match path.split_once('?') {
+                        Some((p, q)) => (p, Some(q)),
+                        None => (path.as_str(), None),
+                    };
+                    let request = ember_ext_auth::SecurityRequest {
+                        path: path_only.to_string(),
+                        method: method.clone(),
+                        authorization: headers.get("authorization").cloned(),
+                    };
+                    match filter.filter(&request) {
+                        Ok(_) => handler
+                            .handle(&method, &path, &body)
+                            .unwrap_or_else(|err| HttpResponse::text(500, err.to_string())),
+                        Err(_) => HttpResponse::text(401, "unauthorized"),
+                    }
+                }
+                Err(err) => HttpResponse::text(400, err.to_string()),
+            };
+            let _ = write_http_response(&mut socket, response).await;
+        });
+    }
+}
+
 async fn read_http_request(
     socket: &mut tokio::net::TcpStream,
-) -> Result<(String, String, Vec<u8>), EmberError> {
+) -> Result<(String, String, HashMap<String, String>, Vec<u8>), EmberError> {
     let mut buffer = Vec::new();
     let mut temp = [0u8; 1024];
     let header_end;
@@ -242,10 +344,16 @@ async fn read_http_request(
         .ok_or_else(|| EmberError::msg("missing path"))?
         .to_string();
 
+    let mut headers = HashMap::new();
     let mut content_length = 0usize;
     for line in lines {
-        if let Some(value) = line.strip_prefix("Content-Length:") {
-            content_length = value.trim().parse::<usize>().unwrap_or(0);
+        if let Some((name, value)) = line.split_once(':') {
+            let name = name.trim().to_ascii_lowercase();
+            let value = value.trim().to_string();
+            if name == "content-length" {
+                content_length = value.parse::<usize>().unwrap_or(0);
+            }
+            headers.insert(name, value);
         }
     }
 
@@ -260,7 +368,7 @@ async fn read_http_request(
         }
         body.extend_from_slice(&temp[..read]);
     }
-    Ok((method, path, body))
+    Ok((method, path, headers, body))
 }
 
 fn find_header_end(buffer: &[u8]) -> Option<usize> {

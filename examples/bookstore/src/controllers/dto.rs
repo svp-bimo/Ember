@@ -42,3 +42,21 @@ pub struct UpdateBookRequest {
     /// Optional year update.
     pub year: Option<u16>,
 }
+
+/// Login request payload.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoginRequest {
+    /// Username.
+    pub username: String,
+    /// Password.
+    pub password: String,
+}
+
+/// Login response payload.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoginResponse {
+    /// JWT access token.
+    pub access_token: String,
+    /// Token type (Bearer).
+    pub token_type: String,
+}

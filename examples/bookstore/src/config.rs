@@ -28,8 +28,25 @@ pub struct EmberConfig {
 pub struct AppConfig {
     /// Ember configuration.
     pub ember: EmberConfig,
+    /// Auth configuration.
+    pub auth: AuthConfig,
     /// Database configuration.
     pub database: DbConfig,
+}
+
+/// Authentication configuration.
+#[derive(Debug, Clone, Deserialize)]
+pub struct AuthConfig {
+    /// JWT secret.
+    pub jwt_secret: String,
+    /// Optional issuer.
+    pub jwt_issuer: Option<String>,
+    /// Optional audience.
+    pub jwt_audience: Option<String>,
+    /// Token expiry in seconds.
+    pub jwt_expires_in_seconds: u64,
+    /// Paths that do not require auth.
+    pub public_paths: Vec<String>,
 }
 
 impl HasDbConfig for AppConfig {

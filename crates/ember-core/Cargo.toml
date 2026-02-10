@@ -15,3 +15,4 @@ ember-ext-exceptions = { path = "../ember-extensions/ember-ext-exceptions" }
 ember-ext-runtime = { path = "../ember-extensions/ember-ext-runtime" }
 ember-ext-config = { path = "../ember-extensions/ember-ext-config" }
 ember-ext-db = { path = "../ember-extensions/ember-ext-db" }
+ember-ext-auth = { path = "../ember-extensions/ember-ext-auth" }

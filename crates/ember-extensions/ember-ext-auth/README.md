@@ -8,6 +8,7 @@ Authentication primitives for Ember. Provides interfaces for authentication and 
 - `SecurityFilter` for request-level auth.
 - `SecurityContext` with subject + roles.
 - `parse_bearer_token()` helper.
+- `JwtAuthFilter` + `JwtIssuer` for JWT-based auth.
 
 ## Example
 
@@ -26,6 +27,19 @@ impl SecurityFilter for MyAuth {
     }
 }
 ```
+
+    ## JWT example
+
+    ```rust
+    use ember_ext_auth::{JwtAuthFilter, JwtConfig, JwtIssuer};
+
+    let mut config = JwtConfig::new("dev-secret");
+    config.allow_paths = vec!["/login".to_owned(), "/health".to_owned()];
+
+    let filter = JwtAuthFilter::new(config.clone());
+    let issuer = JwtIssuer::new(config);
+    let token = issuer.issue_token("user-1", vec!["admin".to_owned()])?;
+    ```
 
 ## Diagram
 

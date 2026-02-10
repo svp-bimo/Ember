@@ -5,21 +5,28 @@
 use ember_core::Json;
 use ember_macros::{controller, delete, get, post, put};
 
-use crate::controllers::dto::{BookResponse, CreateBookRequest, UpdateBookRequest};
+use crate::controllers::dto::{
+    BookResponse, CreateBookRequest, LoginRequest, LoginResponse, UpdateBookRequest,
+};
 use crate::domain::book::BookId;
 use crate::mappers::controller_mapper;
+use crate::services::auth_service::AuthService;
 use crate::services::book_service::BookService;
 
 /// Controller for book endpoints.
 #[derive(Clone)]
 pub struct BookController {
     service: BookService,
+    auth_service: AuthService,
 }
 
 impl BookController {
     /// Create a new book controller.
-    pub fn new(service: BookService) -> Self {
-        Self { service }
+    pub fn new(service: BookService, auth_service: AuthService) -> Self {
+        Self {
+            service,
+            auth_service,
+        }
     }
 }
 
@@ -78,5 +85,18 @@ impl BookController {
     #[delete("/books")]
     pub fn remove_all_books(&self) -> Json<usize> {
         Json(self.service.remove_all())
+    }
+
+    /// Login and receive a JWT.
+    #[post("/login")]
+    pub fn login(&self, input: LoginRequest) -> Json<Option<LoginResponse>> {
+        let token = self
+            .auth_service
+            .login(&input.username, &input.password)
+            .map(|token| LoginResponse {
+                access_token: token,
+                token_type: "Bearer".to_owned(),
+            });
+        Json(token)
     }
 }

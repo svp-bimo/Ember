@@ -12,6 +12,7 @@ ember-core = { path = "../../crates/ember-core" }
 ember-macros = { path = "../../crates/ember-extensions/ember-macros" }
 ember-ext-db = { path = "../../crates/ember-extensions/ember-ext-db" }
 ember-ext-config = { path = "../../crates/ember-extensions/ember-ext-config" }
+ember-ext-auth = { path = "../../crates/ember-extensions/ember-ext-auth" }
 tokio = { version = "1.37", features = ["macros", "rt-multi-thread"] }
 dotenvy = "0.15"
 ember-ext-http = { path = "../../crates/ember-extensions/ember-ext-http" }

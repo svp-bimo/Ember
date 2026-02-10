@@ -6,3 +6,5 @@ license = "MIT"
 
 [dependencies]
 ember-core = { path = "../../ember-core" }
+jsonwebtoken = "9"
+serde = { version = "1", features = ["derive"] }
