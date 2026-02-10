@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build workspace
+        run: cargo build --workspace
+
+      - name: Test workspace
+        run: cargo test --workspace --all-targets
+
+  publish-crates:
+    name: Publish crates to crates.io
+    runs-on: ubuntu-latest
+    needs: build-test
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Publish crates
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          cargo publish -p ember-core
+          cargo publish -p ember-macros
+          cargo publish -p ember-logging
+          cargo publish -p ember-ext-health
+          cargo publish -p ember-ext-http
+          cargo publish -p ember-ext-runtime
+          cargo publish -p ember-ext-db
+          cargo publish -p ember-ext-config
+          cargo publish -p ember-ext-exceptions
+          cargo publish -p ember-ext-openapi
+          cargo publish -p ember-ext-metrics
+          cargo publish -p ember-ext-tracing
+          cargo publish -p ember-ext-auth
+          cargo publish -p ember-ext-mq
+          cargo publish -p ember-cli
+
+  release-artifacts:
+    name: Release artifacts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: build-test
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build ember-cli (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cargo build -p ember-cli --release
+          mkdir -p dist
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            cp target/release/ember-cli dist/ember-cli-linux
+          else
+            cp target/release/ember-cli dist/ember-cli-macos
+          fi
+
+      - name: Build ember-cli (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cargo build -p ember-cli --release
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item target\release\ember-cli.exe dist\ember-cli-windows.exe
+        shell: pwsh
+
+      - name: Upload GitHub Release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/ember-cli-*
