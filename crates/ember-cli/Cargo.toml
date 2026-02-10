@@ -7,3 +7,5 @@ license = "MIT"
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
+ember-ext-openapi = { path = "../ember-extensions/ember-ext-openapi" }
+serde_json = { workspace = true }

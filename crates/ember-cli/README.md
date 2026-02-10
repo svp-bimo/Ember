@@ -1,18 +1,19 @@
 # ember-cli
 
-Command-line interface for Ember. This is the entrypoint for project scaffolding and developer workflows. The CLI is currently a scaffold with planned subcommands.
+Command-line interface for Ember. This is the entrypoint for project scaffolding and developer workflows.
 
-## Commands (planned)
+## Commands
 
-- `ember new <name>` – create a new Ember project skeleton.
-- `ember dev` – run the dev server with hot reload.
-- `ember build` – build and package the application.
-- `ember openapi` – generate OpenAPI documentation.
+- `ember new <name> [--path <dir>] [--entity <def>]` – create a new Ember project skeleton.
+- `ember dev` – run the dev server (`cargo run`).
+- `ember build` – build the application (`cargo build --release`).
+- `ember openapi` – generate a stub OpenAPI document (`openapi.json`).
 
 ## Example
 
 ```bash
-ember new my-service
+ember new my-service --entity Book:id:i64,title:String,author:String
+cd my-service
 ember dev
 ```
 
@@ -28,7 +29,14 @@ flowchart LR
 
 ## Status
 
-Early preview. Commands are stubs and will evolve.
+Usable baseline. `openapi` currently emits a stub document; deeper integration is planned.
+
+### Entity definition format
+
+Use `--entity` multiple times to generate full CRUD scaffolding:
+
+- `--entity Book:id:i64,title:String,author:String`
+- `--entity Author:id:i64,name:String`
 
 ## Related crates
 
