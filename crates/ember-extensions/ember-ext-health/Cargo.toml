@@ -1,0 +1,8 @@
+[package]
+name = "ember-ext-health"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+ember-core = { path = "../../ember-core" }

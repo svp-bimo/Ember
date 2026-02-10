@@ -1,0 +1,11 @@
+[package]
+name = "ember-ext-config"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+ember-ext-exceptions = { path = "../ember-ext-exceptions" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = "0.9"

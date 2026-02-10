@@ -1,0 +1,8 @@
+FROM postgres:16-alpine
+
+ENV POSTGRES_DB=bookstore
+ENV POSTGRES_USER=bookstore
+ENV POSTGRES_PASSWORD=bookstore
+ENV POSTGRES_HOST_AUTH_METHOD=trust
+
+EXPOSE 5432

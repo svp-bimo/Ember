@@ -1,0 +1,17 @@
+[package]
+name = "ember-core"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+dotenvy = "0.15"
+ember-logging = { path = "../ember-extensions/ember-logging" }
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["net", "io-util"] }
+tracing = "0.1"
+ember-ext-http = { path = "../ember-extensions/ember-ext-http" }
+ember-ext-exceptions = { path = "../ember-extensions/ember-ext-exceptions" }
+ember-ext-runtime = { path = "../ember-extensions/ember-ext-runtime" }
+ember-ext-config = { path = "../ember-extensions/ember-ext-config" }
+ember-ext-db = { path = "../ember-extensions/ember-ext-db" }

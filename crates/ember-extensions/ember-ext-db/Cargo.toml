@@ -1,0 +1,11 @@
+[package]
+name = "ember-ext-db"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+ember-ext-exceptions = { path = "../ember-ext-exceptions" }
+serde = { workspace = true }
+sqlx = { version = "0.6.3", default-features = false, features = ["runtime-tokio-native-tls", "postgres"] }
+inventory = "0.3"

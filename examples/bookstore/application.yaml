@@ -1,0 +1,8 @@
+ember:
+  service:
+    name: "bookstore"
+    listen: "0.0.0.0:8080"
+database:
+  url: "postgres://bookstore:bookstore@127.0.0.1:55432/bookstore?sslmode=disable"
+  username: "bookstore"
+  password: "bookstore"

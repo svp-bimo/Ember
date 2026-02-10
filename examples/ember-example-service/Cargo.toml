@@ -1,0 +1,22 @@
+[package]
+name = "ember-example-service"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[features]
+standalone = ["dep:axum", "dep:tokio"]
+
+[dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
+ember-core = { path = "../../crates/ember-core" }
+ember-macros = { path = "../../crates/ember-extensions/ember-macros" }
+ember-logging = { path = "../../crates/ember-extensions/ember-logging" }
+ember-ext-http = { path = "../../crates/ember-extensions/ember-ext-http" }
+ember-ext-runtime = { path = "../../crates/ember-extensions/ember-ext-runtime" }
+ember-ext-health = { path = "../../crates/ember-extensions/ember-ext-health" }
+ember-ext-metrics = { path = "../../crates/ember-extensions/ember-ext-metrics" }
+
+axum = { version = "0.7", optional = true }
+tokio = { version = "1.37", features = ["macros", "rt-multi-thread"], optional = true }
